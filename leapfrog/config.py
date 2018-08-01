@@ -1,0 +1,1 @@
+SQLALCHEMY_DATABASE_URI = 'postgresql://lfmobile:dev@localhost/lfmobile'
