@@ -15,6 +15,27 @@ class User(db.Model):
         }
 
 
+class PendingTransfer(db.Model):
+    __tablename__ = 'pending_transfers'
+    id = db.Column(db.Integer, primary_key=True)
+    old_holder_id = db.Column(db.ForeignKey('users.id'), nullable=False)
+    leapfrog_id = db.Column(db.ForeignKey('leapfrogs.id'), unique=True, nullable=False)
+    transfer_code = db.Column(db.String(30))
+    time_created = db.Column(db.DateTime)
+
+    old_holder = db.relationship('User', foreign_keys=[old_holder_id])
+    leapfrog = db.relationship('Leapfrog', foreign_keys=[leapfrog_id])
+
+    def serializeable(self):
+        return {
+            'id': self.id,
+            'old_holder_id': self.old_holder_id,
+            'leapfrog_id': self.leapfrog_id,
+            'transfer_code': self.transfer_code,
+            'time_created': self.time_created,
+        }
+
+
 class Transfer(db.Model):
     """
     This relation represents the transfer of a leapfrog from one user to another.

@@ -10,10 +10,18 @@ class ModelEncoder(JSONEncoder):
     """
 
     def default(self, obj):
+        """
+        WTF, why doesn't JSONEncoder already try str(obj) ??
+        """
         try:
             return obj.serializeable()
         except AttributeError:
+            pass
+
+        try:
             return JSONEncoder.default(self, obj)
+        except TypeError:
+            return str(obj)
 
 
 def new_transfer_code(l):

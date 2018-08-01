@@ -1,6 +1,9 @@
+from datetime import datetime
 from flask import render_template, request, jsonify
+from sqlalchemy.exc import IntegrityError
 from leapfrog import app, db
-from leapfrog.models import User, Transfer, Leapfrog
+from leapfrog.models import User, PendingTransfer, Transfer, Leapfrog
+from leapfrog.tools import new_transfer_code
 
 
 @app.route('/', methods=['GET'])
@@ -31,10 +34,53 @@ def new_user():
         db.session.add(user)
         db.session.commit()
 
-        return 'User Created: {}'.format(request.form['username'])
+        return 'User Created: {}'.format(request.form['username']), 201
 
     else:
         return 'Missing arguments', 400
+
+
+@app.route('/pendingtransfers', methods=['GET'])
+def get_pending_transfers():
+    query = PendingTransfer.query.all()
+    return jsonify(query)
+
+
+@app.route('/pendingtransfers/<int:id>', methods=['GET'])
+def get_pending_transfer(id):
+    query = PendingTransfer.query.filter(PendingTransfer.id == id)
+    try:
+        return query[0], 200
+    except IndexError:
+        return 'Pending transfer {} not found'.format(id), 404
+
+
+@app.route('/pendingtransfers', methods=['POST'])
+def add_pending_transfer():
+    try:
+        old_holder = User.query.filter(User.id == request.form['old_holder_id'])[0]
+    except IndexError:
+        return 'User {} not found'.format(request.form['old_holder_id']), 404
+
+    try:
+        leapfrog = Leapfrog.query.filter(Leapfrog.id == request.form['leapfrog_id'])[0]
+    except IndexError:
+        return 'Leapfrog {} not found'.format(request.form['leapfrog_id']), 404
+
+    if old_holder != leapfrog.holder:
+        return 'Leapfrog {} not held by user {}'.format(request.form['leapfrog_id'], request.form['old_holder_id'])
+
+    pending_transfer = PendingTransfer(old_holder=old_holder,
+                                       leapfrog=leapfrog,
+                                       transfer_code=new_transfer_code(30),
+                                       time_created=datetime.utcnow())
+    db.session.add(pending_transfer)
+    try:
+        db.session.commit()
+    except IntegrityError:
+        return 'Leapfrog {} is already involved in a pending transfer'.format(request.form['leapfrog_id']), 404
+
+    return jsonify(pending_transfer), 201
 
 
 @app.route('/transfers', methods=['GET'])
@@ -45,7 +91,7 @@ def get_transfers():
 
 @app.route('/leapfrogs', methods=['GET'])
 def get_leapfrogs():
-    query = Leapfrog.query.filter(Leapfrog.id == id)
+    query = Leapfrog.query.all()
     return jsonify(query)
 
 
@@ -77,4 +123,4 @@ def new_leapfrog():
     except AttributeError as e:
         return 'Missing arguments: {}'.format(str(e)), 400
 
-    return jsonify(leapfrog), 200
+    return jsonify(leapfrog), 201
