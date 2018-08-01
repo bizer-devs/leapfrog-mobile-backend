@@ -74,7 +74,7 @@ def new_leapfrog():
         db.session.add(leapfrog)
         db.session.commit()
 
-    except ZeroDivisionError as e:
+    except AttributeError as e:
         return 'Missing arguments: {}'.format(str(e)), 400
 
     return jsonify(leapfrog), 200
