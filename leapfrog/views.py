@@ -44,7 +44,7 @@ def get_transfers():
 
 
 @app.route('/leapfrogs', methods=['GET'])
-def get_leapfrog():
+def get_leapfrogs():
     query = Leapfrog.query.filter(Leapfrog.id == id)
     return jsonify(query)
 
