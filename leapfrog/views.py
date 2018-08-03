@@ -83,6 +83,39 @@ def add_pending_transfer():
     return jsonify(pending_transfer), 201
 
 
+@app.route('/pendingtransfers/<int:id>/confirm', methods=['POST'])
+def confirm_pending_transfer(id):
+    try:
+        pending_transfer = PendingTransfer.query.filter(PendingTransfer.id == id)[0]
+    except IndexError:
+        return 'Pending transfer {} not found'.format(id), 404
+
+    try:
+        new_holder = User.query.filter(User.id == request.form['new_holder_id'])[0]
+    except IndexError:
+        return 'User {} not found'.format(request.form['new_holder_id']), 404
+
+    if pending_transfer.transfer_code != request.form['transfer_code']:
+        return 'Submitted transfer code does not match that of pending transfer', 403
+
+    # update leapfrog's holder to new_holder
+    pending_transfer.leapfrog.holder = new_holder
+
+    # create new transfer object to represent leapfrog transfer
+    num_previous_transfers = Transfer.query.filter(Transfer.leapfrog is PendingTransfer.leapfrog).count()
+    transfer = Transfer(old_holder=pending_transfer.old_holder,
+                        new_holder=new_holder,
+                        leapfrog=pending_transfer.leapfrog,
+                        transfer_number=num_previous_transfers+1,)
+
+    # delete the transfer request
+    db.session.delete(pending_transfer)
+
+    db.session.add(transfer)
+    db.session.commit()
+
+    return jsonify(transfer), 201
+
 @app.route('/transfers', methods=['GET'])
 def get_transfers():
     query = Transfer.query.all()
